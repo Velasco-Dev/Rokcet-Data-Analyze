@@ -1,0 +1,115 @@
+{% extends 'analyze/base.html' %}
+
+{% block title %}Análisis - {{ file.name }}{% endblock %}
+
+{% block content %}
+<div class="container-header">
+    <div class="container">
+        <h1>📊 Análisis: {{ file.name }}</h1>
+        <p class="text-white">{{ file.filename }}</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-white p-3 rounded shadow-sm">
+            <li class="breadcrumb-item"><a href="{% url 'analyze:dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">{{ file.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">ℹ️ Información General</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total de registros:</strong> {{ stats.total_records }}</p>
+                    <p><strong>Duración:</strong> {{ stats.duration_minutes|floatformat:2 }} min</p>
+                    <p><strong>Inicio:</strong> {{ stats.time_range.start }}</p>
+                    <p><strong>Fin:</strong> {{ stats.time_range.end }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">📈 Estadísticas de Variables</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-danger">🌡️ Temperatura </h6>
+                            <small>
+                                <strong>Máx:</strong> {{ stats.temperature_stats.max|floatformat:2 }} °C<br>
+                                <strong>Mín:</strong> {{ stats.temperature_stats.min|floatformat:2 }} °C<br>
+                                <strong>Media:</strong> {{ stats.temperature_stats.mean|floatformat:2 }} °C
+                            </small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-warning">💨 Presión</h6>
+                            <small>
+                                <strong>Máx:</strong> {{ stats.pressure_stats.max|floatformat:2 }} kPa<br>
+                                <strong>Mín:</strong> {{ stats.pressure_stats.min|floatformat:2 }} kPa<br>
+                                <strong>Media:</strong> {{ stats.pressure_stats.mean|floatformat:2 }} kPa
+                            </small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-success">📍 Altura</h6>
+                            <small>
+                                <strong>Máx:</strong> {{ stats.altitude_stats.max|floatformat:2 }} m<br>
+                                <strong>Mín:</strong> {{ stats.altitude_stats.min|floatformat:2 }} m<br>
+                                <strong>Media:</strong> {{ stats.altitude_stats.mean|floatformat:2 }} m
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfica combinada -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">🔗 Vista Combinada</h5>
+        </div>
+        <div class="card-body">
+            {{ combined_plot|safe }}
+        </div>
+    </div>
+
+    <!-- Gráficas individuales interactivas -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">📊 Gráficas Individuales Interactivas</h5>
+        </div>
+        <div class="card-body">
+            {{ interactive_plots.temperature|safe }}
+            {{ interactive_plots.pressure|safe }}
+            {{ interactive_plots.altitude|safe }}
+        </div>
+    </div>
+
+    <!-- Gráfica matplotlib (estática) -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="card-title mb-0">🎨 Vista Rápida (Matplotlib)</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="data:image/png;base64,{{ matplotlib_plot }}" 
+                 alt="Gráficas de análisis" class="img-fluid rounded">
+        </div>
+    </div>
+
+    <!-- Botón volver -->
+    <div class="mb-4">
+        <a href="{% url 'analyze:dashboard' %}" class="btn btn-primary">
+            ← Volver al Dashboard
+        </a>
+    </div>
+</div>
+
+{% endblock %}
