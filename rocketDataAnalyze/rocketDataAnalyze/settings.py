@@ -133,3 +133,27 @@ DEFAULT_LONGITUDE = -76.563
 
 
 # 2.480, -76.563
+
+# ===== CONFIGURACIÓN DEL COHETE Y FÓRMULAS =====
+# Altura base de referencia (metros sobre nivel del mar)
+# Esta es la altura donde se encuentra el punto de lanzamiento
+ROCKET_BASE_ALTITUDE = 161  # metros - Altura promedio en reposo según datos del sensor en Popayán
+
+# Configuración para cálculo de altura teórica (Fórmula de Littlewood)
+LITTLEWOOD_CONFIG = {
+    'T0': 288.15,      # K - Temperatura estándar ISA al nivel del mar
+    'L': 0.0065,       # K/m - Gradiente térmico atmosférico estándar
+    'R': 8.314,        # J/(mol·K) - Constante universal de gases ideales
+    'g': 9.80665,      # m/s² - Aceleración gravitacional estándar
+    'M': 0.029,        # kg/mol - Masa molar del aire seco
+    'USE_LOCAL_TEMP': True,  # Si True, usa temperatura del sensor en lugar de T0 estándar
+    'USE_SIMPLIFIED_FORMULA': True,  # Si True, usa fórmula simplificada para alturas pequeñas (más precisa para cohetes de corto alcance)
+}
+
+# Porcentaje de datos iniciales considerados como "cohete en reposo"
+# Se usa para determinar el punto de lanzamiento
+FLIGHT_DETECTION_THRESHOLD = 0.10  # 10% de los datos iniciales
+
+# Altura mínima (en metros) para considerar que el vuelo ha iniciado
+# Debe ser mayor a este valor sobre el punto de lanzamiento
+MIN_FLIGHT_ALTITUDE = 1.0  # metros

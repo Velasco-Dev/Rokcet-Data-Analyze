@@ -142,75 +142,200 @@ class RocketDataAnalyzer:
     
     # ===== REQUERIMIENTO 1: ANÁLISIS COMPARATIVO Y VALIDACIÓN MULTI-SENSOR =====
     
-    def validate_theoretical_altitude(self, initial_pressure=101.325, theoretical_height=None):
+    def validate_theoretical_altitude(self, initial_pressure=None, theoretical_height=None):
         """
-        Requerimiento 1.1: Validar altura teórica vs. real usando fórmula de Littlewood
+        Requerimiento 1.1: Validar altura teórica vs. real usando fórmula barométrica
         
-        Fórmula Barométrica Internacional (Littlewood):
-        h = (T₀/L) * [1 - (P/P₀)^(R*L/g*M)]
+        METODOLOGÍA:
+        1. Se identifica el punto de lanzamiento (altura mínima en reposo, primeros registros)
+        2. Se detecta el inicio del vuelo (cuando la altura empieza a aumentar significativamente)
+        3. Se calculan alturas RELATIVAS desde el punto de lanzamiento (no altura absoluta)
+        4. Se aplica la fórmula barométrica solo a los datos de vuelo activo
         
-        Donde:
-        - T₀ = 288.15 K (temperatura estándar al nivel del mar)
-        - L = 0.0065 K/m (gradiente térmico)
-        - P₀ = presión inicial (kPa)
-        - R = 8.314 J/(mol·K) (constante de gases)
-        - g = 9.80665 m/s² (gravedad)
-        - M = 0.029 kg/mol (masa molar del aire)
+        FÓRMULAS DISPONIBLES:
+        
+        A) FÓRMULA SIMPLIFICADA (para cohetes de corto alcance < 100m):
+        h = (R×T/M×g) × ln(P₀/P)
+        - Más precisa para cambios pequeños de presión
+        - Asume temperatura constante
+        
+        B) FÓRMULA COMPLETA DE LITTLEWOOD (para grandes alturas):
+        h = (T₀/L) × [1 - (P/P₀)^(R×L/g×M)]
+        - Considera gradiente térmico atmosférico
+        - Mejor para grandes altitudes
+        
+        DATOS UTILIZADOS (configurables en settings.py):
+        - P₀ = Presión en el punto de lanzamiento (primer % de datos = cohete en reposo)
+        - P = Presión actual durante el vuelo
+        - T = Temperatura promedio durante el vuelo
+        - USE_SIMPLIFIED_FORMULA = True/False (elige qué fórmula usar)
         """
-        T0 = 288.15  # K
-        L = 0.0065   # K/m
-        R = 8.314    # J/(mol·K)
-        g = 9.80665  # m/s²
-        M = 0.029    # kg/mol
         
-        # Calcular altura teórica basada en la presión
-        P0 = initial_pressure  # Presión inicial en kPa
-        exponent = (R * L) / (g * M)
+        # Obtener configuraciones desde settings
+        config = getattr(settings, 'LITTLEWOOD_CONFIG', {
+            'T0': 288.15, 'L': 0.0065, 'R': 8.314, 
+            'g': 9.80665, 'M': 0.029, 'USE_LOCAL_TEMP': False
+        })
         
-        self.df['altura_teorica'] = (T0 / L) * (1 - (self.df['presion'] / P0) ** exponent)
-        self.df['error_altura'] = self.df['altura'] - self.df['altura_teorica']
-        self.df['error_porcentual'] = (self.df['error_altura'] / self.df['altura_teorica']) * 100
+        threshold = getattr(settings, 'FLIGHT_DETECTION_THRESHOLD', 0.10)
+        min_flight_alt = getattr(settings, 'MIN_FLIGHT_ALTITUDE', 1.0)
+        base_altitude = getattr(settings, 'ROCKET_BASE_ALTITUDE', 160)
         
-        # Estadísticas del error
+        # PASO 1: Identificar punto de lanzamiento (altura de referencia)
+        # Tomamos el % inicial de datos como "cohete en reposo"
+        n_initial = int(len(self.df) * threshold)
+        if n_initial < 5:
+            n_initial = min(5, len(self.df))
+        
+        altura_lanzamiento = self.df['altura'].iloc[:n_initial].mean()
+        presion_lanzamiento = self.df['presion'].iloc[:n_initial].mean()
+        temperatura_lanzamiento = self.df['temperatura'].iloc[:n_initial].mean() if 'temperatura' in self.df.columns else None
+        
+        # PASO 2: Calcular alturas relativas desde el punto de lanzamiento (solo para detectar vuelo)
+        altura_relativa_temp = self.df['altura'] - altura_lanzamiento
+        
+        # PASO 3: Detectar inicio de vuelo (cuando altura aumenta > umbral configurado)
+        vuelo_iniciado = altura_relativa_temp > min_flight_alt
+        if vuelo_iniciado.any():
+            idx_inicio_vuelo = vuelo_iniciado.idxmax()
+        else:
+            idx_inicio_vuelo = n_initial
+        
+        # PASO 4: Aplicar fórmula barométrica con datos configurables
+        T0 = config['T0']
+        L = config['L']
+        R = config['R']
+        g = config['g']
+        M = config['M']
+        use_simplified = config.get('USE_SIMPLIFIED_FORMULA', False)
+        
+        # Opción: usar temperatura local en lugar de estándar
+        if config.get('USE_LOCAL_TEMP', False) and temperatura_lanzamiento:
+            T0 = temperatura_lanzamiento + 273.15  # Convertir °C a K
+        
+        # P₀ es la presión en el punto de lanzamiento (cohete en reposo)
+        P0 = presion_lanzamiento
+        
+        if use_simplified:
+            # FÓRMULA SIMPLIFICADA: h = (RT/Mg) × ln(P₀/P)
+            # Más precisa para cambios pequeños de presión (cohetes de corto alcance)
+            altura_teorica_relativa = (R * T0 / (M * g)) * np.log(P0 / self.df['presion'])
+            formula_usada = 'Simplificada: h = (RT/Mg) × ln(P₀/P)'
+        else:
+            # FÓRMULA COMPLETA DE LITTLEWOOD: h = (T₀/L) × [1 - (P/P₀)^(R×L/g×M)]
+            # Mejor para grandes altitudes con gradiente térmico
+            exponent = (R * L) / (g * M)
+            altura_teorica_relativa = (T0 / L) * (1 - (self.df['presion'] / P0) ** exponent)
+            formula_usada = 'Littlewood: h = (T₀/L) × [1 - (P/P₀)^(R×L/g×M)]'
+        
+        # Luego la convertimos a altura absoluta (igual que la del CSV)
+        self.df['altura_teorica_littlewood'] = altura_teorica_relativa + altura_lanzamiento
+        
+        # PASO 5: Calcular errores solo para datos de vuelo activo (comparando alturas absolutas)
+        df_vuelo = self.df[idx_inicio_vuelo:].copy()
+        df_vuelo['error_altura'] = df_vuelo['altura'] - df_vuelo['altura_teorica_littlewood']
+        df_vuelo['error_porcentual'] = (df_vuelo['error_altura'] / df_vuelo['altura_teorica_littlewood'].abs()) * 100
+        
+        # Estadísticas del error (solo datos de vuelo)
         error_stats = {
-            'error_promedio': self.df['error_altura'].mean(),
-            'error_std': self.df['error_altura'].std(),
-            'error_max': self.df['error_altura'].max(),
-            'error_min': self.df['error_altura'].min(),
-            'error_porcentual_promedio': self.df['error_porcentual'].mean(),
-            'rmse': np.sqrt(np.mean(self.df['error_altura']**2))
+            'altura_base_configurada': float(base_altitude),
+            'altura_lanzamiento': float(altura_lanzamiento),
+            'presion_lanzamiento': float(presion_lanzamiento),
+            'temperatura_lanzamiento': float(temperatura_lanzamiento) if temperatura_lanzamiento else None,
+            'n_datos_reposo': n_initial,
+            'n_datos_vuelo': len(df_vuelo),
+            'porcentaje_datos_reposo': float(threshold * 100),
+            'altura_maxima_real': float(df_vuelo['altura'].max()),
+            'altura_maxima_teorica': float(df_vuelo['altura_teorica_littlewood'].max()),
+            'error_promedio': float(df_vuelo['error_altura'].mean()),
+            'error_std': float(df_vuelo['error_altura'].std()),
+            'error_max': float(df_vuelo['error_altura'].max()),
+            'error_min': float(df_vuelo['error_altura'].min()),
+            'error_porcentual_promedio': float(df_vuelo['error_porcentual'].mean()),
+            'rmse': float(np.sqrt(np.mean(df_vuelo['error_altura']**2))),
+            'mae': float(df_vuelo['error_altura'].abs().mean()),
+            'config_usado': {
+                'T0': f"{T0:.2f} K" + (" (temperatura local)" if config.get('USE_LOCAL_TEMP') else " (ISA estándar)"),
+                'L': f"{L} K/m",
+                'R': f"{R} J/(mol·K)",
+                'g': f"{g} m/s²",
+                'M': f"{M} kg/mol"
+            }
         }
         
-        # Crear gráfica comparativa
+        # PASO 6: Crear gráfica comparativa (todo el vuelo) - USANDO ALTURAS ABSOLUTAS
         fig = go.Figure()
+        
+        # Zona de reposo (antes del vuelo)
         fig.add_trace(go.Scatter(
-            x=self.df['timestamp'], 
-            y=self.df['altura'],
+            x=self.df['timestamp'][:idx_inicio_vuelo], 
+            y=self.df['altura'][:idx_inicio_vuelo],
+            mode='lines',
+            name='Reposo (pre-vuelo)',
+            line=dict(color='gray', width=2, dash='dot'),
+            showlegend=True
+        ))
+        
+        # Altura real durante el vuelo (del CSV)
+        fig.add_trace(go.Scatter(
+            x=df_vuelo['timestamp'], 
+            y=df_vuelo['altura'],
             mode='lines',
             name='Altura Real (Sensor)',
-            line=dict(color='green', width=2)
+            line=dict(color='green', width=3)
         ))
+        
+        # Altura teórica según Littlewood (absoluta)
         fig.add_trace(go.Scatter(
-            x=self.df['timestamp'], 
-            y=self.df['altura_teorica'],
+            x=df_vuelo['timestamp'], 
+            y=df_vuelo['altura_teorica_littlewood'],
             mode='lines',
             name='Altura Teórica (Littlewood)',
-            line=dict(color='orange', width=2, dash='dash')
+            line=dict(color='orange', width=3, dash='dash')
         ))
         
         fig.update_layout(
-            title='Validación: Altura Real vs Teórica (Fórmula de Littlewood)',
+            title=f'Validación Littlewood: Alturas Absolutas (h₀={altura_lanzamiento:.1f}m)',
             xaxis_title='Tiempo',
-            yaxis_title='Altura (m)',
-            hovermode='x unified'
+            yaxis_title='Altura Absoluta (m)',
+            hovermode='x unified',
+            annotations=[
+                dict(
+                    x=0.02, y=0.98,
+                    xref='paper', yref='paper',
+                    text=f'<b>Configuración:</b><br>' +
+                         f'P₀ = {presion_lanzamiento:.2f} kPa<br>' +
+                         f'h₀ = {altura_lanzamiento:.1f} m<br>' +
+                         f'Base = {base_altitude} m<br>' +
+                         f'T₀ = {T0:.2f} K',
+                    showarrow=False,
+                    bgcolor='rgba(255,255,255,0.9)',
+                    bordercolor='black',
+                    borderwidth=1,
+                    align='left'
+                )
+            ]
         )
         
         plot_html = plot(fig, output_type='div')
         
+        # Crear tabla de datos para mostrar (usando alturas absolutas)
+        tabla_datos = df_vuelo[['timestamp', 'altura', 'altura_teorica_littlewood', 
+                                 'error_altura', 'error_porcentual']].head(20).to_dict('records')
+        
         return {
             'error_stats': error_stats,
             'plot': plot_html,
-            'data': self.df[['timestamp', 'altura', 'altura_teorica', 'error_altura', 'error_porcentual']].to_dict('records')
+            'data_sample': tabla_datos,
+            'explicacion': {
+                'metodo': f'Se usó el promedio de los primeros {threshold*100:.0f}% de datos ({n_initial} registros) como punto de referencia (cohete en reposo)',
+                'formula': formula_usada,
+                'referencia_presion': f'{presion_lanzamiento:.2f} kPa (presión en el lanzamiento)',
+                'referencia_altura': f'{altura_lanzamiento:.1f} m (altura absoluta del punto de lanzamiento)',
+                'altura_base_config': f'{base_altitude} m (configurada en ROCKET_BASE_ALTITUDE)',
+                'interpretacion': 'Se comparan alturas ABSOLUTAS: la del CSV (altura real) vs la calculada con fórmula barométrica (altura teórica). Ambas están en la misma escala.',
+                'ajustar_config': 'Para cambiar entre fórmula simplificada y completa, modifica USE_SIMPLIFIED_FORMULA en settings.py (True para cohetes < 100m, False para mayores altitudes)'
+            }
         }
     
     def altitude_pressure_curve(self):

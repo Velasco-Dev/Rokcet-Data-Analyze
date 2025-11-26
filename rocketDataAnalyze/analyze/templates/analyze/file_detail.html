@@ -158,14 +158,113 @@
             <!-- 1.1 Validación Altura Teórica vs Real -->
             <div class="mb-4">
                 <h4 class="text-primary">1.1 📏 Validación: Altura Teórica vs Real (Fórmula de Littlewood)</h4>
-                <div class="alert alert-info">
-                    <strong>Error Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_promedio|floatformat:2 }} m<br>
-                    <strong>Error Porcentual Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_porcentual_promedio|floatformat:2 }}%<br>
-                    <strong>RMSE:</strong> {{ advanced_analysis.validation.error_stats.rmse|floatformat:2 }} m<br>
-                    <strong>Error Máximo:</strong> {{ advanced_analysis.validation.error_stats.error_max|floatformat:2 }} m<br>
-                    <strong>Error Mínimo:</strong> {{ advanced_analysis.validation.error_stats.error_min|floatformat:2 }} m
+                
+                <!-- Explicación de la Metodología -->
+                <div class="alert alert-secondary">
+                    <h5>📖 Metodología y Fórmula Utilizada:</h5>
+                    <p><strong>Fórmula de Littlewood (Barométrica Internacional):</strong></p>
+                    <code>h = (T₀/L) × [1 - (P/P₀)^(R×L/g×M)] + h₀</code>
+                    
+                    <hr>
+                    <p><strong>⚙️ Configuración Utilizada (editable en settings.py):</strong></p>
+                    <ul>
+                        <li><strong>Altura Base (ROCKET_BASE_ALTITUDE):</strong> {{ advanced_analysis.validation.error_stats.altura_base_configurada|floatformat:0 }} m</li>
+                        <li><strong>Umbral de Detección de Vuelo:</strong> {{ advanced_analysis.validation.error_stats.porcentaje_datos_reposo|floatformat:0 }}% de datos iniciales</li>
+                    </ul>
+                    
+                    <hr>
+                    <p><strong>📊 Constantes de la Fórmula (configurables en LITTLEWOOD_CONFIG):</strong></p>
+                    <ul>
+                        <li><strong>T₀:</strong> {{ advanced_analysis.validation.error_stats.config_usado.T0 }}</li>
+                        <li><strong>L:</strong> {{ advanced_analysis.validation.error_stats.config_usado.L }}</li>
+                        <li><strong>R:</strong> {{ advanced_analysis.validation.error_stats.config_usado.R }}</li>
+                        <li><strong>g:</strong> {{ advanced_analysis.validation.error_stats.config_usado.g }}</li>
+                        <li><strong>M:</strong> {{ advanced_analysis.validation.error_stats.config_usado.M }}</li>
+                    </ul>
+                    
+                    <hr>
+                    <p><strong>📍 Datos Utilizados para el Cálculo:</strong></p>
+                    <ul>
+                        <li><strong>P₀ (Presión de referencia):</strong> {{ advanced_analysis.validation.error_stats.presion_lanzamiento|floatformat:2 }} kPa 
+                            <em>(promedio de {{ advanced_analysis.validation.error_stats.n_datos_reposo }} primeros registros = cohete en reposo)</em></li>
+                        <li><strong>h₀ (Altura de lanzamiento):</strong> {{ advanced_analysis.validation.error_stats.altura_lanzamiento|floatformat:1 }} m 
+                            <em>(altura absoluta del punto de lanzamiento)</em></li>
+                        {% if advanced_analysis.validation.error_stats.temperatura_lanzamiento %}
+                        <li><strong>T (Temperatura de lanzamiento):</strong> {{ advanced_analysis.validation.error_stats.temperatura_lanzamiento|floatformat:1 }}°C</li>
+                        {% endif %}
+                    </ul>
+                    
+                    <hr>
+                    <p><strong>🔧 Cómo Ajustar la Configuración:</strong></p>
+                    <ol>
+                        <li>Abre <code>rocketDataAnalyze/settings.py</code></li>
+                        <li>Busca la sección <strong>"CONFIGURACIÓN DEL COHETE Y FÓRMULAS"</strong></li>
+                        <li>Modifica:
+                            <ul>
+                                <li><code>ROCKET_BASE_ALTITUDE = 160</code> → Cambia según tu altura de lanzamiento</li>
+                                <li><code>LITTLEWOOD_CONFIG</code> → Ajusta constantes de la fórmula si necesitas</li>
+                                <li><code>FLIGHT_DETECTION_THRESHOLD = 0.10</code> → % de datos en reposo</li>
+                                <li><code>MIN_FLIGHT_ALTITUDE = 1.0</code> → Umbral mínimo para detectar vuelo</li>
+                            </ul>
+                        </li>
+                        <li>Reinicia el servidor Django</li>
+                    </ol>
+                    
+                    <hr>
+                    <p><strong>📋 Metodología de Cálculo:</strong></p>
+                    <ol>
+                        <li>Se identificó el <strong>punto de lanzamiento</strong> como el promedio de los primeros {{ advanced_analysis.validation.error_stats.n_datos_reposo }} registros (cohete en reposo)</li>
+                        <li><strong>Altura Real:</strong> Se usa directamente la del CSV (altura absoluta medida por el sensor BMP280)</li>
+                        <li><strong>Altura Teórica:</strong> Se calcula con Littlewood usando P₀ y se suma h₀ para obtener altura absoluta</li>
+                        <li>Se comparan ambas alturas en <strong>la misma escala absoluta</strong> durante el vuelo ({{ advanced_analysis.validation.error_stats.n_datos_vuelo }} registros)</li>
+                    </ol>
+                    
+                    <div class="alert alert-info mt-2">
+                        <strong>ℹ️ Nota:</strong> Ambas alturas (Real y Teórica) están en valores absolutos (metros sobre nivel del mar o referencia), 
+                        por lo que son directamente comparables. La altura del CSV (~158m) debe ser similar a la calculada con Littlewood.
+                    </div>
                 </div>
+                
+                <!-- Estadísticas del Error -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-header bg-success text-white">
+                                <h5>🚀 Datos del Vuelo</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Altura Máxima Real:</strong> {{ advanced_analysis.validation.error_stats.altura_maxima_real|floatformat:2 }} m</p>
+                                <p><strong>Altura Máxima Teórica (Littlewood):</strong> {{ advanced_analysis.validation.error_stats.altura_maxima_teorica|floatformat:2 }} m</p>
+                                <p><strong>Registros en Vuelo:</strong> {{ advanced_analysis.validation.error_stats.n_datos_vuelo }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-header bg-warning text-dark">
+                                <h5>📊 Análisis de Errores</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Error Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_promedio|floatformat:2 }} m 
+                                   ({{ advanced_analysis.validation.error_stats.error_porcentual_promedio|floatformat:1 }}%)</p>
+                                <p><strong>RMSE:</strong> {{ advanced_analysis.validation.error_stats.rmse|floatformat:2 }} m</p>
+                                <p><strong>MAE:</strong> {{ advanced_analysis.validation.error_stats.mae|floatformat:2 }} m</p>
+                                <p><strong>Rango de Error:</strong> [{{ advanced_analysis.validation.error_stats.error_min|floatformat:2 }}, 
+                                   {{ advanced_analysis.validation.error_stats.error_max|floatformat:2 }}] m</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gráfica -->
                 {{ advanced_analysis.validation.plot|safe }}
+                
+                <!-- Interpretación -->
+                <div class="alert alert-success mt-3">
+                    <h5>💡 Interpretación:</h5>
+                    <p>{{ advanced_analysis.validation.explicacion.interpretacion }}</p>
+                    <p><strong>Punto de Referencia:</strong> {{ advanced_analysis.validation.explicacion.referencia_altura }} con presión de {{ advanced_analysis.validation.explicacion.referencia_presion }}</p>
+                </div>
             </div>
 
             <!-- 1.2 Dashboard Ambiental -->
