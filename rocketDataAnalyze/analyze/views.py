@@ -4,6 +4,7 @@ from django.contrib import messages
 from .forms import DataFileForm
 from .models import DataFile
 from .utils import RocketDataAnalyzer
+from datetime import datetime
 import os
 import json
 
@@ -36,12 +37,26 @@ def file_analyze(request, file_id):
     interactive_plots = analyzer.create_interactive_plots()
     combined_plot = analyzer.create_combined_plot()
     
+    # Obtener el tipo de análisis solicitado
+    analysis_type = request.GET.get('analysis', 'basic')
+    
+    # Obtener fecha específica para datos meteorológicos (si se proporciona)
+    weather_date = request.GET.get('weather_date', None)  # Formato: YYYY-MM-DD
+    
+    advanced_analysis = {}
+    if analysis_type == 'complete':
+        # Realizar análisis completo de todos los requerimientos
+        advanced_analysis = analyzer.get_comprehensive_analysis(weather_date=weather_date)
+    
     context = {
         'file': data_file,
         'stats': stats,
         'matplotlib_plot': matplotlib_plot,
         'interactive_plots': interactive_plots,
         'combined_plot': combined_plot,
+        'analysis_type': analysis_type,
+        'advanced_analysis': advanced_analysis,
+        'today': datetime.now().date(),  # Para limitar el selector de fecha
     }
     
     return render(request, 'analyze/file_detail.html', context)

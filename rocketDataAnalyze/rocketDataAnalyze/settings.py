@@ -121,3 +121,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ===== CONFIGURACIÓN DE API EXTERNA =====
+# API Key para OpenWeatherMap (para Dashboard Ambiental - Requerimiento 1.2)
+# Obtén tu API key gratis en: https://openweathermap.org/api
+OPENWEATHER_API_KEY = '20e000dd01640ec32d0b0f2a5e40dacf'  # Reemplaza con tu API key real
+
+# Coordenadas por defecto (puedes cambiarlas según tu ubicación)
+DEFAULT_LATITUDE = 2.480  # Colombia Popayan(ejemplo)
+DEFAULT_LONGITUDE = -76.563
+
+
+# 2.480, -76.563

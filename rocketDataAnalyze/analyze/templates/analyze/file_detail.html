@@ -18,6 +18,47 @@
         </ol>
     </nav>
 
+    <!-- Tabs para seleccionar tipo de análisis -->
+    <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if analysis_type == 'basic' %}active{% endif %}" 
+                    onclick="window.location.href='?analysis=basic'" type="button">
+                📈 Análisis Básico
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if analysis_type == 'complete' %}active{% endif %}" 
+                    onclick="window.location.href='?analysis=complete'" type="button">
+                🚀 Análisis Completo (Todos los Requerimientos)
+            </button>
+        </li>
+    </ul>
+
+    <!-- Selector de fecha para datos meteorológicos (solo visible en análisis completo) -->
+    {% if analysis_type == 'complete' %}
+    <div class="card mb-4 border-info">
+        <div class="card-body bg-light">
+            <form method="get" class="row g-3 align-items-end" id="weatherDateForm">
+                <input type="hidden" name="analysis" value="complete">
+                <div class="col-md-4">
+                    <label for="weather_date" class="form-label">📅 Fecha para Datos Meteorológicos:</label>
+                    <input type="date" class="form-control" id="weather_date" name="weather_date" 
+                           value="{{ request.GET.weather_date }}"
+                           max="{{ today|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-info">🔄 Actualizar Datos Meteorológicos</button>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">💡 Deja vacío para usar la fecha del CSV</small>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if analysis_type == 'basic' %}
+    <!-- ANÁLISIS BÁSICO -->
     <!-- Estadísticas -->
     <div class="row mb-4">
         <div class="col-md-4">
@@ -104,9 +145,279 @@
         </div>
     </div>
 
+    {% elif analysis_type == 'complete' %}
+    <!-- ANÁLISIS COMPLETO DE TODOS LOS REQUERIMIENTOS -->
+    
+    <!-- REQUERIMIENTO 1: ANÁLISIS COMPARATIVO Y VALIDACIÓN MULTI-SENSOR -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0">📋 REQUERIMIENTO 1: Análisis Comparativo y Validación Multi-Sensor</h3>
+        </div>
+        <div class="card-body">
+            
+            <!-- 1.1 Validación Altura Teórica vs Real -->
+            <div class="mb-4">
+                <h4 class="text-primary">1.1 📏 Validación: Altura Teórica vs Real (Fórmula de Littlewood)</h4>
+                <div class="alert alert-info">
+                    <strong>Error Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_promedio|floatformat:2 }} m<br>
+                    <strong>Error Porcentual Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_porcentual_promedio|floatformat:2 }}%<br>
+                    <strong>RMSE:</strong> {{ advanced_analysis.validation.error_stats.rmse|floatformat:2 }} m<br>
+                    <strong>Error Máximo:</strong> {{ advanced_analysis.validation.error_stats.error_max|floatformat:2 }} m<br>
+                    <strong>Error Mínimo:</strong> {{ advanced_analysis.validation.error_stats.error_min|floatformat:2 }} m
+                </div>
+                {{ advanced_analysis.validation.plot|safe }}
+            </div>
+
+            <!-- 1.2 Dashboard Ambiental -->
+            <div class="mb-4">
+                <h4 class="text-primary">1.2 🌐 Dashboard Ambiental (Comparación con Datos Externos)</h4>
+                
+                {% if advanced_analysis.weather_comparison.error %}
+                    <div class="alert alert-warning">
+                        <h5>⚠️ {{ advanced_analysis.weather_comparison.message }}</h5>
+                        {% if advanced_analysis.weather_comparison.instructions %}
+                            <p><strong>Instrucciones para activar:</strong></p>
+                            <ol>
+                                {% for instruction in advanced_analysis.weather_comparison.instructions %}
+                                <li>{{ instruction }}</li>
+                                {% endfor %}
+                            </ol>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <!-- Información de la fecha consultada -->
+                    <div class="alert alert-info">
+                        <strong>📅 Fecha consultada:</strong> {{ advanced_analysis.weather_comparison.query_date }}
+                        {% if advanced_analysis.weather_comparison.warning %}
+                            <br><small class="text-warning">⚠️ {{ advanced_analysis.weather_comparison.warning }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-header bg-info text-white">
+                                    <h5>📡 Datos del Sensor (Promedio)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Temperatura:</strong> {{ advanced_analysis.weather_comparison.sensor_data.temperatura_sensor|floatformat:2 }} °C</p>
+                                    <p><strong>Presión:</strong> {{ advanced_analysis.weather_comparison.sensor_data.presion_sensor|floatformat:2 }} kPa</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5>🌤️ Datos Meteorológicos ({{ advanced_analysis.weather_comparison.external_data.ubicacion }})</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Temperatura:</strong> {{ advanced_analysis.weather_comparison.external_data.temperatura_externa|floatformat:2 }} °C</p>
+                                    <p><strong>Presión:</strong> {{ advanced_analysis.weather_comparison.external_data.presion_externa|floatformat:2 }} kPa</p>
+                                    <p><strong>Humedad:</strong> {{ advanced_analysis.weather_comparison.external_data.humedad }}%</p>
+                                    <p><strong>Condiciones:</strong> {{ advanced_analysis.weather_comparison.external_data.descripcion }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <h5>📊 Análisis de Diferencias:</h5>
+                        <p><strong>Diferencia de Temperatura:</strong> {{ advanced_analysis.weather_comparison.comparisons.diff_temperatura|floatformat:2 }} °C 
+                           ({{ advanced_analysis.weather_comparison.comparisons.diff_temperatura_pct|floatformat:1 }}%)</p>
+                        <p><strong>Diferencia de Presión:</strong> {{ advanced_analysis.weather_comparison.comparisons.diff_presion|floatformat:2 }} kPa 
+                           ({{ advanced_analysis.weather_comparison.comparisons.diff_presion_pct|floatformat:1 }}%)</p>
+                    </div>
+                    
+                    <div class="alert alert-success">
+                        <h5>💡 Interpretación:</h5>
+                        <ul>
+                            {% for interp in advanced_analysis.weather_comparison.interpretation %}
+                            <li>{{ interp }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    {{ advanced_analysis.weather_comparison.plot_temperature|safe }}
+                    {{ advanced_analysis.weather_comparison.plot_pressure|safe }}
+                {% endif %}
+            </div>
+
+            <!-- 1.3 Curva Altitud vs Presión -->
+            <div class="mb-4">
+                <h4 class="text-primary">1.3 📊 Curva Altitud vs Presión vs Ecuación Barométrica</h4>
+                <div class="alert alert-secondary">
+                    Esta gráfica compara los datos reales del sensor con la ecuación barométrica teórica para verificar la consistencia del sensor.
+                </div>
+                {{ advanced_analysis.altitude_pressure|safe }}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- REQUERIMIENTO 2: DIAGNÓSTICO DE EVENTOS Y ATMÓSFERA -->
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success text-white">
+            <h3 class="card-title mb-0">📋 REQUERIMIENTO 2: Diagnóstico de Eventos y Atmósfera</h3>
+        </div>
+        <div class="card-body">
+            
+            <!-- 2.1 Fases del Vuelo -->
+            <div class="mb-4">
+                <h4 class="text-success">2.1 🚀 Fases del Vuelo (Ascenso, Apogeo, Descenso)</h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert alert-success">
+                            <strong>🎯 Altura Máxima (Apogeo):</strong> {{ advanced_analysis.flight_phases.stats.apogeo_altura|floatformat:2 }} m<br>
+                            <strong>⏱️ Tiempo al Apogeo:</strong> {{ advanced_analysis.flight_phases.stats.apogeo_tiempo }}<br>
+                            <strong>⏫ Duración Ascenso:</strong> {{ advanced_analysis.flight_phases.stats.duracion_ascenso|floatformat:2 }} s
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-warning">
+                            <strong>⏬ Duración Descenso:</strong> {{ advanced_analysis.flight_phases.stats.duracion_descenso|floatformat:2 }} s<br>
+                            <strong>⚡ Velocidad Máx Ascenso:</strong> {{ advanced_analysis.flight_phases.stats.velocidad_max_ascenso|floatformat:2 }} m/s<br>
+                            <strong>🪂 Velocidad Máx Descenso:</strong> {{ advanced_analysis.flight_phases.stats.velocidad_max_descenso|floatformat:2 }} m/s
+                        </div>
+                    </div>
+                </div>
+                {{ advanced_analysis.flight_phases.plot|safe }}
+            </div>
+
+            <!-- 2.2 Análisis Paracaídas -->
+            <div class="mb-4">
+                <h4 class="text-success">2.2 🪂 Análisis de Despliegue del Paracaídas</h4>
+                <div class="alert {% if advanced_analysis.parachute.parachute_detected %}alert-success{% else %}alert-warning{% endif %}">
+                    <strong>Estado:</strong> 
+                    {% if advanced_analysis.parachute.parachute_detected %}
+                        ✅ Paracaídas detectado<br>
+                        <strong>Tiempo de despliegue:</strong> {{ advanced_analysis.parachute.parachute_time }}<br>
+                        <strong>Altura de despliegue:</strong> {{ advanced_analysis.parachute.parachute_height|floatformat:2 }} m
+                    {% else %}
+                        ⚠️ No se detectó despliegue claro del paracaídas en los datos
+                    {% endif %}
+                </div>
+                {{ advanced_analysis.parachute.plot|safe }}
+            </div>
+
+            <!-- 2.3 Densidad del Aire -->
+            <div class="mb-4">
+                <h4 class="text-success">2.3 💨 Densidad del Aire Durante el Vuelo</h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <strong>Densidad Promedio:</strong> {{ advanced_analysis.air_density.stats.densidad_promedio|floatformat:4 }} kg/m³<br>
+                            <strong>Densidad Máxima:</strong> {{ advanced_analysis.air_density.stats.densidad_max|floatformat:4 }} kg/m³<br>
+                            <strong>Densidad Mínima:</strong> {{ advanced_analysis.air_density.stats.densidad_min|floatformat:4 }} kg/m³
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-secondary">
+                            <strong>📊 Impacto en el Rendimiento:</strong><br>
+                            <strong>Densidad en Ascenso:</strong> {{ advanced_analysis.air_density.impact_analysis.densidad_promedio_ascenso|floatformat:4 }} kg/m³<br>
+                            <strong>Densidad en Descenso:</strong> {{ advanced_analysis.air_density.impact_analysis.densidad_promedio_descenso|floatformat:4 }} kg/m³<br>
+                            <strong>Diferencia:</strong> {{ advanced_analysis.air_density.impact_analysis.diferencia_porcentual|floatformat:2 }}%<br>
+                            <em>{{ advanced_analysis.air_density.impact_analysis.interpretacion }}</em>
+                        </div>
+                    </div>
+                </div>
+                {{ advanced_analysis.air_density.plot|safe }}
+            </div>
+
+            <!-- 2.4 Anomalías -->
+            <div class="mb-4">
+                <h4 class="text-success">2.4 ⚠️ Detección de Anomalías</h4>
+                <div class="alert alert-{% if advanced_analysis.anomalies.total_anomalies > 0 %}warning{% else %}success{% endif %}">
+                    <strong>Total de Anomalías Detectadas:</strong> {{ advanced_analysis.anomalies.total_anomalies }}
+                </div>
+                {% if advanced_analysis.anomalies.anomalies %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Timestamp</th>
+                            <th>Valor</th>
+                            <th>Altura</th>
+                            <th>Causa Probable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for anomaly in advanced_analysis.anomalies.anomalies %}
+                        <tr>
+                            <td><span class="badge bg-danger">{{ anomaly.tipo }}</span></td>
+                            <td>{{ anomaly.timestamp }}</td>
+                            <td>{{ anomaly.valor|floatformat:2 }}</td>
+                            <td>{{ anomaly.altura|floatformat:2 }} m</td>
+                            <td>{{ anomaly.causa_probable }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+                {{ advanced_analysis.anomalies.plot|safe }}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- REQUERIMIENTO 3: OPTIMIZACIÓN BASADA EN EVIDENCIA -->
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h3 class="card-title mb-0">📋 REQUERIMIENTO 3: Optimización Basada en Evidencia</h3>
+        </div>
+        <div class="card-body">
+            
+            <!-- 3.1 Fórmula del Éxito -->
+            <div class="mb-4">
+                <h4 class="text-warning">3.1 🏆 Fórmula del Éxito: Condiciones Óptimas</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-header bg-success text-white">
+                                <h5>🚀 Condiciones de Lanzamiento</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Presión Inicial:</strong> {{ advanced_analysis.success_formula.launch_conditions.presion_inicial|floatformat:2 }} kPa</p>
+                                <p><strong>Temperatura Inicial:</strong> {{ advanced_analysis.success_formula.launch_conditions.temperatura_inicial|floatformat:2 }} °C</p>
+                                <p><strong>Altura Inicial:</strong> {{ advanced_analysis.success_formula.launch_conditions.altura_inicial|floatformat:2 }} m</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-header bg-warning text-dark">
+                                <h5>🎯 Resultados en el Apogeo</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Altura Máxima:</strong> {{ advanced_analysis.success_formula.apogee_conditions.altura_maxima|floatformat:2 }} m</p>
+                                <p><strong>Tiempo hasta Apogeo:</strong> {{ advanced_analysis.success_formula.apogee_conditions.tiempo_al_apogeo|floatformat:2 }} s</p>
+                                <p><strong>Temperatura en Apogeo:</strong> {{ advanced_analysis.success_formula.apogee_conditions.temperatura_apogeo|floatformat:2 }} °C</p>
+                                <p><strong>Presión en Apogeo:</strong> {{ advanced_analysis.success_formula.apogee_conditions.presion_apogeo|floatformat:2 }} kPa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success mt-3">
+                    <h5>✨ Recomendaciones para Optimización:</h5>
+                    <ul>
+                        {% for rec in advanced_analysis.success_formula.recommendations %}
+                        <li>{{ rec }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {{ advanced_analysis.success_formula.plot|safe }}
+            </div>
+
+        </div>
+    </div>
+
+    {% endif %}
+
     <!-- Botón volver -->
     <div class="mb-4">
-        <a href="{% url 'analyze:dashboard' %}" class="btn btn-primary">
+        <a href="{% url 'analyze:dashboard' %}" class="btn btn-primary btn-lg">
             ← Volver al Dashboard
         </a>
     </div>
