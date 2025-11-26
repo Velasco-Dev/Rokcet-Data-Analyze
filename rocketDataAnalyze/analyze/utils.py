@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Backend sin GUI para evitar errores de threading
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
