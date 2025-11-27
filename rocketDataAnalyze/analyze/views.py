@@ -43,10 +43,21 @@ def file_analyze(request, file_id):
     # Obtener fecha específica para datos meteorológicos (si se proporciona)
     weather_date = request.GET.get('weather_date', None)  # Formato: YYYY-MM-DD
     
+    # Obtener tiempo de vuelo manual (si se proporciona)
+    tiempo_vuelo_manual = request.GET.get('tiempo_vuelo', None)
+    if tiempo_vuelo_manual:
+        try:
+            tiempo_vuelo_manual = float(tiempo_vuelo_manual)
+        except:
+            tiempo_vuelo_manual = None
+    
     advanced_analysis = {}
     if analysis_type == 'complete':
         # Realizar análisis completo de todos los requerimientos
-        advanced_analysis = analyzer.get_comprehensive_analysis(weather_date=weather_date)
+        advanced_analysis = analyzer.get_comprehensive_analysis(
+            weather_date=weather_date,
+            tiempo_vuelo_manual=tiempo_vuelo_manual
+        )
     
     context = {
         'file': data_file,
@@ -57,6 +68,7 @@ def file_analyze(request, file_id):
         'analysis_type': analysis_type,
         'advanced_analysis': advanced_analysis,
         'today': datetime.now().date(),  # Para limitar el selector de fecha
+        'tiempo_vuelo_manual': tiempo_vuelo_manual,  # Para mantener el valor en el formulario
     }
     
     return render(request, 'analyze/file_detail.html', context)

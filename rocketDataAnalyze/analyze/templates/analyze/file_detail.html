@@ -36,23 +36,12 @@
 
     <!-- Selector de fecha para datos meteorológicos (solo visible en análisis completo) -->
     {% if analysis_type == 'complete' %}
-    <div class="card mb-4 border-info">
-        <div class="card-body bg-light">
-            <form method="get" class="row g-3 align-items-end" id="weatherDateForm">
-                <input type="hidden" name="analysis" value="complete">
-                <div class="col-md-4">
-                    <label for="weather_date" class="form-label">📅 Fecha para Datos Meteorológicos:</label>
-                    <input type="date" class="form-control" id="weather_date" name="weather_date" 
-                           value="{{ request.GET.weather_date }}"
-                           max="{{ today|date:'Y-m-d' }}">
-                </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-info">🔄 Actualizar Datos Meteorológicos</button>
-                </div>
-                <div class="col-md-4">
-                    <small class="text-muted">💡 Deja vacío para usar la fecha del CSV</small>
-                </div>
-            </form>
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">🖼️ Presentación</h5>
+        </div>
+        <div class="card-body">
+            <iframe src="https://docs.google.com/presentation/d/e/2PACX-1vRlvxZffW903eaZMQJAuJfNu5eAe8cU8h2I4OLGrvKY6ZR2Fmg8esbyKHfZTGQdaA/pubembed?start=false&loop=true&delayms=3000" frameborder="0" width="960" height="629" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
         </div>
     </div>
     {% endif %}
@@ -68,7 +57,7 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Total de registros:</strong> {{ stats.total_records }}</p>
-                    <p><strong>Duración:</strong> {{ stats.duration_minutes|floatformat:2 }} min</p>
+                    <p><strong>Duración:</strong> {{ stats.duration_seconds|floatformat:2 }} segundos</p>
                     <p><strong>Inicio:</strong> {{ stats.time_range.start }}</p>
                     <p><strong>Fin:</strong> {{ stats.time_range.end }}</p>
                 </div>
@@ -155,116 +144,66 @@
         </div>
         <div class="card-body">
             
-            <!-- 1.1 Validación Altura Teórica vs Real -->
+            <!-- 1.1 Análisis de Vuelos Detectados -->
             <div class="mb-4">
-                <h4 class="text-primary">1.1 📏 Validación: Altura Teórica vs Real (Fórmula de Littlewood)</h4>
+                <h4 class="text-primary">1.1 📏 Análisis de Vuelos Detectados</h4>
                 
-                <!-- Explicación de la Metodología -->
-                <div class="alert alert-secondary">
-                    <h5>📖 Metodología y Fórmula Utilizada:</h5>
-                    <p><strong>Fórmula de Littlewood (Barométrica Internacional):</strong></p>
-                    <code>h = (T₀/L) × [1 - (P/P₀)^(R×L/g×M)] + h₀</code>
-                    
-                    <hr>
-                    <p><strong>⚙️ Configuración Utilizada (editable en settings.py):</strong></p>
-                    <ul>
-                        <li><strong>Altura Base (ROCKET_BASE_ALTITUDE):</strong> {{ advanced_analysis.validation.error_stats.altura_base_configurada|floatformat:0 }} m</li>
-                        <li><strong>Umbral de Detección de Vuelo:</strong> {{ advanced_analysis.validation.error_stats.porcentaje_datos_reposo|floatformat:0 }}% de datos iniciales</li>
-                    </ul>
-                    
-                    <hr>
-                    <p><strong>📊 Constantes de la Fórmula (configurables en LITTLEWOOD_CONFIG):</strong></p>
-                    <ul>
-                        <li><strong>T₀:</strong> {{ advanced_analysis.validation.error_stats.config_usado.T0 }}</li>
-                        <li><strong>L:</strong> {{ advanced_analysis.validation.error_stats.config_usado.L }}</li>
-                        <li><strong>R:</strong> {{ advanced_analysis.validation.error_stats.config_usado.R }}</li>
-                        <li><strong>g:</strong> {{ advanced_analysis.validation.error_stats.config_usado.g }}</li>
-                        <li><strong>M:</strong> {{ advanced_analysis.validation.error_stats.config_usado.M }}</li>
-                    </ul>
-                    
-                    <hr>
-                    <p><strong>📍 Datos Utilizados para el Cálculo:</strong></p>
-                    <ul>
-                        <li><strong>P₀ (Presión de referencia):</strong> {{ advanced_analysis.validation.error_stats.presion_lanzamiento|floatformat:2 }} kPa 
-                            <em>(promedio de {{ advanced_analysis.validation.error_stats.n_datos_reposo }} primeros registros = cohete en reposo)</em></li>
-                        <li><strong>h₀ (Altura de lanzamiento):</strong> {{ advanced_analysis.validation.error_stats.altura_lanzamiento|floatformat:1 }} m 
-                            <em>(altura absoluta del punto de lanzamiento)</em></li>
-                        {% if advanced_analysis.validation.error_stats.temperatura_lanzamiento %}
-                        <li><strong>T (Temperatura de lanzamiento):</strong> {{ advanced_analysis.validation.error_stats.temperatura_lanzamiento|floatformat:1 }}°C</li>
+                <!-- Tabla de vuelos detectados -->
+                <div class="card mb-3">
+                        {% if advanced_analysis.validation.error_stats.vuelos_detectados %}
+                        <div class="alert alert-success">
+                            <h6>✅ Vuelos Detectados: {{ advanced_analysis.validation.error_stats.vuelos_detectados|length }}</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mt-2">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Vuelo</th>
+                                            <th>Altura Inicial (m)</th>
+                                            <th>Altura Pico (m)</th>
+                                            <th>Altura Ganada (m)</th>
+                                            <th>Duración Total (s)</th>
+                                            <th>Ascenso (s)</th>
+                                            <th>Descenso (s)</th>
+                                            <th>Vel. Prom. (m/s)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for vuelo in advanced_analysis.validation.error_stats.vuelos_detectados %}
+                                        <tr>
+                                            <td><strong>{{ vuelo.numero }}</strong></td>
+                                            <td>{{ vuelo.altura_inicio|floatformat:2 }}</td>
+                                            <td>{{ vuelo.altura_pico|floatformat:2 }}</td>
+                                            <td><strong class="text-primary">{{ vuelo.altura_ganada|floatformat:2 }}</strong></td>
+                                            <td><strong class="text-success">{{ vuelo.duracion_total|floatformat:2 }}</strong></td>
+                                            <td>{{ vuelo.duracion_ascenso|floatformat:2 }}</td>
+                                            <td>{{ vuelo.duracion_descenso|floatformat:2 }}</td>
+                                            <td>{{ vuelo.velocidad_promedio|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if advanced_analysis.validation.error_stats.tiempo_promedio_vuelos %}
+                            <div class="mt-2">
+                                <p class="mb-1"><strong>📊 Promedios:</strong></p>
+                                <ul class="mb-0">
+                                    <li><strong>Duración:</strong> {{ advanced_analysis.validation.error_stats.tiempo_promedio_vuelos|floatformat:2 }} segundos</li>
+                                    <li><strong>Altura Ganada:</strong> {{ advanced_analysis.validation.error_stats.altura_promedio_ganada|floatformat:2 }} metros</li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
                         {% endif %}
-                    </ul>
-                    
-                    <hr>
-                    <p><strong>🔧 Cómo Ajustar la Configuración:</strong></p>
-                    <ol>
-                        <li>Abre <code>rocketDataAnalyze/settings.py</code></li>
-                        <li>Busca la sección <strong>"CONFIGURACIÓN DEL COHETE Y FÓRMULAS"</strong></li>
-                        <li>Modifica:
-                            <ul>
-                                <li><code>ROCKET_BASE_ALTITUDE = 160</code> → Cambia según tu altura de lanzamiento</li>
-                                <li><code>LITTLEWOOD_CONFIG</code> → Ajusta constantes de la fórmula si necesitas</li>
-                                <li><code>FLIGHT_DETECTION_THRESHOLD = 0.10</code> → % de datos en reposo</li>
-                                <li><code>MIN_FLIGHT_ALTITUDE = 1.0</code> → Umbral mínimo para detectar vuelo</li>
-                            </ul>
-                        </li>
-                        <li>Reinicia el servidor Django</li>
-                    </ol>
-                    
-                    <hr>
-                    <p><strong>📋 Metodología de Cálculo:</strong></p>
-                    <ol>
-                        <li>Se identificó el <strong>punto de lanzamiento</strong> como el promedio de los primeros {{ advanced_analysis.validation.error_stats.n_datos_reposo }} registros (cohete en reposo)</li>
-                        <li><strong>Altura Real:</strong> Se usa directamente la del CSV (altura absoluta medida por el sensor BMP280)</li>
-                        <li><strong>Altura Teórica:</strong> Se calcula con Littlewood usando P₀ y se suma h₀ para obtener altura absoluta</li>
-                        <li>Se comparan ambas alturas en <strong>la misma escala absoluta</strong> durante el vuelo ({{ advanced_analysis.validation.error_stats.n_datos_vuelo }} registros)</li>
-                    </ol>
-                    
-                    <div class="alert alert-info mt-2">
-                        <strong>ℹ️ Nota:</strong> Ambas alturas (Real y Teórica) están en valores absolutos (metros sobre nivel del mar o referencia), 
-                        por lo que son directamente comparables. La altura del CSV (~158m) debe ser similar a la calculada con Littlewood.
-                    </div>
-                </div>
-                
-                <!-- Estadísticas del Error -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="card bg-light">
-                            <div class="card-header bg-success text-white">
-                                <h5>🚀 Datos del Vuelo</h5>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Altura Máxima Real:</strong> {{ advanced_analysis.validation.error_stats.altura_maxima_real|floatformat:2 }} m</p>
-                                <p><strong>Altura Máxima Teórica (Littlewood):</strong> {{ advanced_analysis.validation.error_stats.altura_maxima_teorica|floatformat:2 }} m</p>
-                                <p><strong>Registros en Vuelo:</strong> {{ advanced_analysis.validation.error_stats.n_datos_vuelo }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card bg-light">
-                            <div class="card-header bg-warning text-dark">
-                                <h5>📊 Análisis de Errores</h5>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Error Promedio:</strong> {{ advanced_analysis.validation.error_stats.error_promedio|floatformat:2 }} m 
-                                   ({{ advanced_analysis.validation.error_stats.error_porcentual_promedio|floatformat:1 }}%)</p>
-                                <p><strong>RMSE:</strong> {{ advanced_analysis.validation.error_stats.rmse|floatformat:2 }} m</p>
-                                <p><strong>MAE:</strong> {{ advanced_analysis.validation.error_stats.mae|floatformat:2 }} m</p>
-                                <p><strong>Rango de Error:</strong> [{{ advanced_analysis.validation.error_stats.error_min|floatformat:2 }}, 
-                                   {{ advanced_analysis.validation.error_stats.error_max|floatformat:2 }}] m</p>
-                            </div>
-                        </div>
+                        
+                        <small class="text-muted mt-2 d-block">
+                            💡 <strong>Detección Automática:</strong> El sistema detecta todos los vuelos mediante análisis de picos y valles. 
+                            La altura inicial es la altura promedio del reposo antes del primer vuelo.
+                        </small>
                     </div>
                 </div>
                 
                 <!-- Gráfica -->
                 {{ advanced_analysis.validation.plot|safe }}
-                
-                <!-- Interpretación -->
-                <div class="alert alert-success mt-3">
-                    <h5>💡 Interpretación:</h5>
-                    <p>{{ advanced_analysis.validation.explicacion.interpretacion }}</p>
-                    <p><strong>Punto de Referencia:</strong> {{ advanced_analysis.validation.explicacion.referencia_altura }} con presión de {{ advanced_analysis.validation.explicacion.referencia_presion }}</p>
-                </div>
             </div>
 
             <!-- 1.2 Dashboard Ambiental -->
@@ -363,16 +302,26 @@
             <!-- 2.1 Fases del Vuelo -->
             <div class="mb-4">
                 <h4 class="text-success">2.1 🚀 Fases del Vuelo (Ascenso, Apogeo, Descenso)</h4>
+                
+                {% if advanced_analysis.flight_phases.stats.warning %}
+                <div class="alert alert-warning">
+                    <h5>⚠️ Advertencia:</h5>
+                    <p>{{ advanced_analysis.flight_phases.stats.warning }}</p>
+                    <p><strong>Variación de Altura Detectada:</strong> {{ advanced_analysis.flight_phases.stats.variacion_altura|floatformat:2 }} m</p>
+                    <p><strong>Rango:</strong> {{ advanced_analysis.flight_phases.stats.altura_minima|floatformat:2 }} m - {{ advanced_analysis.flight_phases.stats.altura_maxima|floatformat:2 }} m</p>
+                </div>
+                {% endif %}
+                
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="alert alert-success">
-                            <strong>🎯 Altura Máxima (Apogeo):</strong> {{ advanced_analysis.flight_phases.stats.apogeo_altura|floatformat:2 }} m<br>
+                        <div class="alert {% if advanced_analysis.flight_phases.stats.vuelo_detectado %}alert-success{% else %}alert-secondary{% endif %}">
+                            <strong>🎯 Altura Máxima:</strong> {{ advanced_analysis.flight_phases.stats.apogeo_altura|floatformat:2 }} m<br>
                             <strong>⏱️ Tiempo al Apogeo:</strong> {{ advanced_analysis.flight_phases.stats.apogeo_tiempo }}<br>
                             <strong>⏫ Duración Ascenso:</strong> {{ advanced_analysis.flight_phases.stats.duracion_ascenso|floatformat:2 }} s
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="alert alert-warning">
+                        <div class="alert {% if advanced_analysis.flight_phases.stats.vuelo_detectado %}alert-warning{% else %}alert-secondary{% endif %}">
                             <strong>⏬ Duración Descenso:</strong> {{ advanced_analysis.flight_phases.stats.duracion_descenso|floatformat:2 }} s<br>
                             <strong>⚡ Velocidad Máx Ascenso:</strong> {{ advanced_analysis.flight_phases.stats.velocidad_max_ascenso|floatformat:2 }} m/s<br>
                             <strong>🪂 Velocidad Máx Descenso:</strong> {{ advanced_analysis.flight_phases.stats.velocidad_max_descenso|floatformat:2 }} m/s
@@ -385,14 +334,25 @@
             <!-- 2.2 Análisis Paracaídas -->
             <div class="mb-4">
                 <h4 class="text-success">2.2 🪂 Análisis de Despliegue del Paracaídas</h4>
-                <div class="alert {% if advanced_analysis.parachute.parachute_detected %}alert-success{% else %}alert-warning{% endif %}">
+                
+                {% if advanced_analysis.parachute.warning %}
+                <div class="alert alert-warning">
+                    <strong>⚠️ Advertencia:</strong> {{ advanced_analysis.parachute.warning }}
+                </div>
+                {% endif %}
+                
+                <div class="alert {% if advanced_analysis.parachute.parachute_detected %}alert-success{% else %}alert-{% if advanced_analysis.parachute.vuelo_detectado %}warning{% else %}secondary{% endif %}{% endif %}">
                     <strong>Estado:</strong> 
                     {% if advanced_analysis.parachute.parachute_detected %}
                         ✅ Paracaídas detectado<br>
                         <strong>Tiempo de despliegue:</strong> {{ advanced_analysis.parachute.parachute_time }}<br>
                         <strong>Altura de despliegue:</strong> {{ advanced_analysis.parachute.parachute_height|floatformat:2 }} m
                     {% else %}
-                        ⚠️ No se detectó despliegue claro del paracaídas en los datos
+                        {% if advanced_analysis.parachute.vuelo_detectado %}
+                            ⚠️ No se detectó despliegue claro del paracaídas en los datos
+                        {% else %}
+                            ℹ️ No aplicable (sensor en reposo, sin vuelo real)
+                        {% endif %}
                     {% endif %}
                 </div>
                 {{ advanced_analysis.parachute.plot|safe }}
@@ -401,12 +361,23 @@
             <!-- 2.3 Densidad del Aire -->
             <div class="mb-4">
                 <h4 class="text-success">2.3 💨 Densidad del Aire Durante el Vuelo</h4>
+                
+                {% if advanced_analysis.air_density.warning %}
+                <div class="alert alert-info">
+                    <strong>ℹ️ Información Importante:</strong>
+                    <p>{{ advanced_analysis.air_density.warning }}</p>
+                </div>
+                {% endif %}
+                
                 <div class="row">
                     <div class="col-md-6">
                         <div class="alert alert-info">
                             <strong>Densidad Promedio:</strong> {{ advanced_analysis.air_density.stats.densidad_promedio|floatformat:4 }} kg/m³<br>
                             <strong>Densidad Máxima:</strong> {{ advanced_analysis.air_density.stats.densidad_max|floatformat:4 }} kg/m³<br>
                             <strong>Densidad Mínima:</strong> {{ advanced_analysis.air_density.stats.densidad_min|floatformat:4 }} kg/m³
+                            {% if not advanced_analysis.air_density.vuelo_detectado %}
+                                <br><small class="text-muted">(Condiciones atmosféricas en reposo)</small>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -425,8 +396,19 @@
             <!-- 2.4 Anomalías -->
             <div class="mb-4">
                 <h4 class="text-success">2.4 ⚠️ Detección de Anomalías</h4>
+                
+                {% if advanced_analysis.anomalies.warning %}
+                <div class="alert alert-info">
+                    <strong>ℹ️ Información Importante:</strong>
+                    <p>{{ advanced_analysis.anomalies.warning }}</p>
+                </div>
+                {% endif %}
+                
                 <div class="alert alert-{% if advanced_analysis.anomalies.total_anomalies > 0 %}warning{% else %}success{% endif %}">
                     <strong>Total de Anomalías Detectadas:</strong> {{ advanced_analysis.anomalies.total_anomalies }}
+                    {% if not advanced_analysis.anomalies.vuelo_detectado %}
+                        <br><small class="text-muted">(Principalmente ruido normal del sensor en reposo)</small>
+                    {% endif %}
                 </div>
                 {% if advanced_analysis.anomalies.anomalies %}
                 <table class="table table-striped">
@@ -442,7 +424,7 @@
                     <tbody>
                         {% for anomaly in advanced_analysis.anomalies.anomalies %}
                         <tr>
-                            <td><span class="badge bg-danger">{{ anomaly.tipo }}</span></td>
+                            <td><span class="badge bg-{% if advanced_analysis.anomalies.vuelo_detectado %}danger{% else %}secondary{% endif %}">{{ anomaly.tipo }}</span></td>
                             <td>{{ anomaly.timestamp }}</td>
                             <td>{{ anomaly.valor|floatformat:2 }}</td>
                             <td>{{ anomaly.altura|floatformat:2 }} m</td>
@@ -452,7 +434,12 @@
                     </tbody>
                 </table>
                 {% endif %}
-                {{ advanced_analysis.anomalies.plot|safe }}
+                
+                <h5 class="mt-4">Gráfica de Temperatura:</h5>
+                {{ advanced_analysis.anomalies.plot_temperature|safe }}
+                
+                <h5 class="mt-4">Gráfica de Presión:</h5>
+                {{ advanced_analysis.anomalies.plot_pressure|safe }}
             </div>
 
         </div>
